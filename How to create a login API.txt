@@ -1,0 +1,94 @@
+					Steps when creating a Login API unsing ASP.Net 
+
+1- Create the project ASP.Net Core Web API project
+
+2- Create 3 folders (Context, Helpers, Models)
+
+3- Create the database Model class in Models folder as (Users)
+
+4- Download the nugetpackages
+	1 - microsoft entity framework core
+	2 - microsoft entity framework core.sqlServer
+	3 - Microsoft.AspNetCore.Authentication.JwtBearer
+	4 - microsoft entity framework core.Tools(search as efcore.tools)
+
+						AFTER DOWNLOADING PACKAGES
+
+5-Create a class in Context folder as (AppDBContext)
+	* Declare as DbContext in public class
+	* After that create the constructor (type as ctor & press enter)
+	* Inject the instance in side constructor e.g(DbContextOptions <AppDBcontext> options):base(options)
+	* Create the DB Set e.g: public DbSet<Users> Users { get; set; }
+	* Sending the rechord to the correct table. So create a method like this e.g: protected override void OnModelCreating
+	* Create a model builder inside the method e.g: protected override void OnModelCreating(ModelBuilder modelBuilder)
+	* now the model builder helps you to take entity & send it to SQL Server e.g:  modelBuilder.Entity<Users>().ToTable("users");
+
+6-Configure the servce in programe.cs
+	builder.Services.AddDbContext<AppDBcontext>(option =>
+	{
+    		option.UseSqlServer(builder.Configuration.GetConnectionString("SqlServerConnstr"));
+	});
+
+7- to make this as a configuration file we are not hardcode in the programe.cs. we use appsettings.jason & create a property call 
+   connectionString. inside the this property we are passing the connection string
+	e.g:"ConnectionStrings": {
+    		"SqlServerConnstr": "Data Source=LAPTOP"
+  	     }
+
+8- Now need to create the DB. So open the package manager 
+	View -> Other Windows -> PackageManager Console
+
+	* hit the command add-migration v1
+	* and generate the floder 
+	* after that hit the command // update-database // to update the database is sql server
+
+9- Create API Controller
+	* rigth click on controllers folder -> add -> empty controller -> API controller empty
+	* 1st inject the DbConext class to communicate with DB after that crate the constructor
+	* inside the constructor inject the instance e.g: 
+		public UserController(AppDBcontext appDBcontext)
+        	{
+            		_authContext = appDBcontext; 
+        	}
+
+	*create the authentication 
+		
+	[HttpPost("authentication")]   
+        public async Task<IActionResult> Authenticate([FromBody] Users userObj)
+        { 
+	//if some one is sendig a blank object it will retur a bad request//
+            if (userObj == null)
+                return BadRequest();
+	
+ 	//If the user have the correct username and password as to the below logic, then the login will be success and return as
+       	//login success//
+            var user = await _authContext.Users.FirstOrDefaultAsync
+                (x => x.username == userObj.username && x.password == userObj.password);
+
+	 //If it is wrogn the it'll comes to this line and return the result
+            if (user == null)
+                return NotFound(new { Message = "User not found" });
+            
+            return Ok(new
+            {
+                Message = "Login Success!"
+            });
+        }
+
+
+	//For registration
+	[HttpPost("register")]
+        public async Task<IActionResult> RegisterUser([FromBody] Users userObj)
+        {
+            if (userObj == null)
+                return BadRequest();
+
+            await _authContext.Users.AddAsync(userObj);
+            await _authContext.SaveChangesAsync();  
+            return Ok(new
+            {
+                Message = "User Registered!"
+            });    
+        }
+
+run the project to check
